@@ -1,4 +1,4 @@
-# 환경변수 (API 키) — 절대 커밋 금지
+# 환경변수
 .env
 
 # 파이썬
@@ -7,13 +7,12 @@ __pycache__/
 venv/
 .venv/
 
-# FAISS 인덱스 캐시 (첫 실행 시 자동 재생성)
+# FAISS 인덱스 캐시
 data/faiss_exams/
 data/faiss_notes/
 
-# 대화·오답노트 영속 DB (실행 시 자동 생성)
+# 대화·오답노트 영속 DB
 data/checkpoints.sqlite
 
 # OS
 .DS_Store
-.claude/
