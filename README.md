@@ -47,7 +47,7 @@ RAG · Memory · Middleware · StateGraph)을 종합해 **실제로 동작하는
 ## 2. 전체 아키텍처
 
 > 노드별 책임·상태 설계·분기/반복·RAG 전처리 등 **상세 설계 문서는
-> [docs/WORKFLOW.md](docs/WORKFLOW.md)** 를 참조하세요.
+> [docs/WORKFLOW.md](docs/WORKFLOW.md)** 를 참고
 
 ### Workflow 다이어그램
 `app/graph.py` 의 `graph.get_graph().draw_mermaid()` 로 자동 생성되며, `GET /api/diagram` 으로
@@ -136,7 +136,7 @@ uvicorn app.server:app --reload
 # 5. 브라우저 접속 → http://127.0.0.1:8000
 ```
 > 최초 실행 시 기출 120문항·개념 80건을 임베딩해 `data/faiss_exams/`, `data/faiss_notes/`에
-> 캐시한다(이후 재사용).
+> 캐시한다(이후 재사용)
 
 ---
 
@@ -159,22 +159,22 @@ uvicorn app.server:app --reload
 | `search_wikipedia` | 외부 검색 | 개념 DB에 없는 지엽적 용어 보완 |
 | `calculate_year_gap` | 로직 계산 | 두 사건의 연도 차이 계산 |
 
-`@tool` 데코레이터의 docstring이 곧 LLM의 선택 근거다. "탕평책이 뭐야?"는 `search_history_source`,
+`@tool` 데코레이터의 docstring이 곧 LLM의 선택 근거, "탕평책이 뭐야?"는 `search_history_source`,
 "환곡제가 뭐야?"(노트에 없으면) `search_wikipedia`, "임진왜란과 병자호란 몇 년 차이?"는
-`calculate_year_gap` 으로 — LLM이 서로 다른 Tool로 자율 분기한다.
+`calculate_year_gap` 으로 — LLM이 서로 다른 Tool로 자율 분기
 
 ### RAG 파이프라인
 `data/*` → **전처리**(JSON/텍스트 파싱, 제목·메타데이터 분리) → `text-embedding-3-small` 임베딩
-→ FAISS 인덱싱(로컬 캐시) → 유사도 검색(k=3) + 거리 임계값 필터 → 근거로 주입.
-출제·채점은 실제 기출 DB에서만 근거를 가져와 환각을 원천 차단한다.
+→ FAISS 인덱싱(로컬 캐시) → 유사도 검색(k=3) + 거리 임계값 필터 → 근거로 주입
+출제·채점은 실제 기출 DB에서만 근거를 가져와 오해를 차단
 
 ### Memory (멀티턴)
 - **서버**: `SqliteSaver` 체크포인터 + `thread_id`(대화·오답노트를 `data/checkpoints.sqlite`에 영속화). `add_messages` 리듀서로 대화 이력이 누적되고,
-  **`wrong_tags`·`last_quiz` 가 thread별로 유지**되어 오답노트·채점이 성립한다.
+  **`wrong_tags`·`last_quiz` 가 thread별로 유지**되어 오답노트·채점이 성립
 - **클라이언트**: 좌측 사이드바에 대화 목록을 `localStorage`로 저장. 각 대화가 고유 `thread_id`를
-  가져 새로고침 후에도 이전 대화를 다시 열 수 있다.
+  가져 새로고침 후에도 이전 대화 조회 가능
 - 과거 턴의 `tool_call↔ToolMessage` 쌍이 누적되어 발생하는 OpenAI 400 에러는 "과거 턴은 완결된
-  대화만, 현재 턴은 tool 메시지 포함 전체" 로 메시지를 정리해 예방한다.
+  대화만, 현재 턴은 tool 메시지 포함 전체" 로 메시지를 정리해 예방
 
 ### Middleware (2종)
 | Middleware | 대응 훅 | 기능 |
@@ -184,7 +184,7 @@ uvicorn app.server:app --reload
 
 ### OutputParser (구조화 출력)
 개념 답변은 `with_structured_output(AnswerCard)`로 Pydantic 스키마를 강제한다. `source`/`is_verified`는
-LLM 자기보고가 아니라 **실제 ToolMessage 실행 기록**으로 코드에서 재계산해 신뢰성을 확보했다.
+LLM 자기보고가 아니라 **실제 ToolMessage 실행 기록**으로 코드에서 재계산해 신뢰성을 확보
 
 ### Chain / Runnable 조합 (LCEL)
 `router`(의도 분류)와 `answer`(개념 답변)는 `ChatPromptTemplate | ChatOpenAI.with_structured_output(...)`
@@ -195,12 +195,12 @@ OutputParser를 Runnable 파이프로 조합해 재사용성과 가독성을 높
 
 ## 5. 데이터 구축 방법 (직접 제작)
 
-- **`past_exams.jsonl` (120문항)** — 국사편찬위원회 공식 최근 22개 회차(57~78회, 2022~2026) 기출
+- **`past_exams.jsonl` (120문항)** — 국사편찬위원회 공식 최근 22개 회차(57-78회, 2022-2026) 기출
   1,100문항을 직접 내려받아 문항별 시대·주제를 태깅·집계한 뒤, 그 **빈출 분포에 비례**해 실존
-  사실(연도·인물·사건)에 정확히 기반한 문항을 자체 제작했다. `source`는 실제 회차를 사칭하지 않고
-  "한능검 기출 유형 · 자체 제작"으로 표기한다.
-- **`history_notes.txt` (80건)** — 시대별 핵심 개념·사료 요약을 "제목 ::: 본문" 형식으로 직접 작성.
-- **`topic_stats.json`** — 22회차 태깅 결과의 (시대·주제)별 출제 횟수·회차 통계.
+  사실(연도·인물·사건)에 정확히 기반한 문항을 자체 제작, `source`는 실제 회차를 사칭하지 않고
+  "한능검 기출 유형 · 자체 제작"으로 표기
+- **`history_notes.txt` (80건)** — 시대별 핵심 개념·사료 요약을 "제목 ::: 본문" 형식으로 직접 작성
+- **`topic_stats.json`** — 22회차 태깅 결과의 (시대·주제)별 출제 횟수·회차 통계
 
 ---
 
@@ -214,19 +214,16 @@ OutputParser를 Runnable 파이프로 조합해 재사용성과 가독성을 높
 
 ## 7. 한계점 및 향후 개선 방향
 **한계점**
-- 오답노트를 `SqliteSaver`로 파일 DB에 영속화해 서버 재시작 후에도 유지된다(로그인 기반 사용자별 분리는 미구현).
-- 출제 문항이 120개라 같은 문제가 반복될 수 있다.
-- 답변이 한 번에 표시된다(토큰 스트리밍 미지원).
+- 오답노트를 `SqliteSaver`로 파일 DB에 영속화해 서버 재시작 후에도 유지된다(로그인 기반 사용자별 분리는 미구현)
+- 출제 문항이 120개라 같은 문제가 반복될 수 있다
 
 **향후 개선**
-- 로그인 기반 사용자별 오답노트 분리 저장.
-- 문항 확충 및 유사 문항 중복 방지 로직 강화.
-- SSE 스트리밍으로 답변 타이핑 효과 제공.
+- 로그인 기반 사용자별 오답노트 분리 저장
+- 문항 확충 및 유사 문항 중복 방지 로직 강화
 
 ---
 
 ## 8. 오픈소스 출처 및 저작권 (Attribution)
-아래 오픈소스 라이브러리를 사용해 **직접 작성**했으며, 타인/타 팀 코드를 복제하지 않았다.
 
 | 라이브러리 | 용도 | 라이선스 |
 |---|---|---|
@@ -243,8 +240,7 @@ OutputParser를 Runnable 파이프로 조합해 재사용성과 가독성을 높
 | [python-dotenv](https://github.com/theskumar/python-dotenv) | `.env` 로드 | BSD-3-Clause |
 
 ### 참고한 공식 문서 패턴
-아래는 라이브러리의 표준 사용법(정해진 API)을 공식 문서에서 참고한 부분이며, 코드 자체는 본 프로젝트에
-맞게 직접 작성했다. 타 팀/타인의 프로젝트 코드는 복제하지 않았다.
+아래는 라이브러리의 표준 사용법(정해진 API)을 공식 문서에서 참고한 부분
 - LangGraph 공식 문서 — `StateGraph` 조립, `add_conditional_edges`, `ToolNode` 기반 ReAct 루프,
   `SqliteSaver` 체크포인터, `get_graph().draw_mermaid()` 다이어그램 생성
 - LangChain 공식 문서 — `@tool` 데코레이터, `with_structured_output()`, LCEL 체인(`prompt | model`),
@@ -252,8 +248,8 @@ OutputParser를 Runnable 파이프로 조합해 재사용성과 가독성을 높
 
 ### 데이터 출처
 - 기출 원천: [국사편찬위원회 한국사능력검정시험 자료실](https://www.historyexam.go.kr/pst/list.do?bbs=dat)
-  공식 공개 기출(최근 22개 회차)을 분석·집계에 활용. 배포 문항은 이를 사칭하지 않은 자체 제작물이다.
-- 시대별 비중·빈출 경향 참고: 국사편찬위원회 공개 기출 및 일반 한국사 지식을 바탕으로 직접 정리.
+  공식 공개 기출(최근 22개 회차)을 분석·집계에 활용. 배포 문항은 이를 사칭하지 않은 자체 제작물
+- 시대별 비중·빈출 경향 참고: 국사편찬위원회 공개 기출 및 일반 한국사 지식을 바탕으로 직접 정리
 
 ### 외부 폰트
 - [Gowun Batang](https://fonts.google.com/specimen/Gowun+Batang),
