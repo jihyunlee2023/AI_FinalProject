@@ -16,3 +16,4 @@ data/checkpoints.sqlite
 
 # OS
 .DS_Store
+.claude/
