@@ -54,9 +54,9 @@ START → guard ─(차단)─→ blocked_reply → END
          ├─ 채점  → grade    → END        │
          ├─ 약점  → weakness → END        │
          └─ 개념  → agent ◄──────┐        │   agent: ReAct — Tool 자율 선택
-                     │           │        │
+                     │          │        │
             (tool_calls 있음 &   │        │
-             반복 한도 미만)      │        │
+             반복 한도 미만)        │        │
                      ▼           │        │
                    tools ────────┘        │   실행 후 agent 로 복귀(반복 루프)
                      │
