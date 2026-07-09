@@ -1,0 +1,14 @@
+# 사관(史官) — 한국사 학습 Agent 의존성
+# LangChain / LangGraph 최신(1.x) 기준
+
+langchain>=1.0.0
+langgraph>=1.0.0
+langgraph-checkpoint-sqlite
+langchain-openai
+langchain-community
+faiss-cpu
+wikipedia
+fastapi
+uvicorn[standard]
+python-dotenv
+pydantic

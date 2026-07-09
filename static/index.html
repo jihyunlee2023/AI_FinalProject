@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>사관(史官) — 한국사 학습 Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #F7F4ED;
+    --ink: #26323F;
+    --ink-soft: #63707C;
+    --accent: #8A1F2B;      /* 전통 단청 적색 */
+    --accent-soft: #C0505C;
+    --teal: #1F6E63;
+    --line: #E1DBCB;
+    --card: #FFFFFF;
+    --sidebar: #EFEADC;
+    --ok: #1F7A4D;
+    --no: #B5333F;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'IBM Plex Sans KR', sans-serif;
+    background: var(--paper); color: var(--ink);
+    height: 100vh; display: flex; overflow: hidden;
+  }
+  /* ── 사이드바 ── */
+  #sidebar {
+    width: 260px; background: var(--sidebar); border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; flex-shrink: 0;
+  }
+  #sidebar .brand { padding: 20px 18px 12px; }
+  #sidebar .brand h1 { font-family: 'Gowun Batang', serif; font-size: 22px; color: var(--accent); }
+  #sidebar .brand p { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
+  #newChat {
+    margin: 6px 14px 12px; padding: 10px; border: 1px dashed var(--accent-soft);
+    background: transparent; color: var(--accent); border-radius: 10px;
+    cursor: pointer; font-weight: 600; font-family: inherit; font-size: 14px;
+  }
+  #newChat:hover { background: rgba(138,31,43,.06); }
+  #convList { flex: 1; overflow-y: auto; padding: 0 10px; }
+  .conv {
+    padding: 10px 12px; border-radius: 9px; cursor: pointer; margin-bottom: 4px;
+    font-size: 13px; color: var(--ink-soft); display: flex; justify-content: space-between;
+    align-items: center; gap: 6px;
+  }
+  .conv:hover { background: rgba(0,0,0,.04); }
+  .conv.active { background: var(--card); color: var(--ink); font-weight: 600; }
+  .conv .del { opacity: 0; font-size: 12px; color: var(--no); }
+  .conv:hover .del { opacity: .7; }
+  #weakBox {
+    margin: 10px 14px 16px; padding: 12px; background: var(--card);
+    border: 1px solid var(--line); border-radius: 10px; font-size: 12px;
+  }
+  #weakBox h3 { font-size: 12px; color: var(--accent); margin-bottom: 8px; }
+  #weakBox .tag {
+    display: inline-block; background: rgba(181,51,63,.1); color: var(--no);
+    padding: 3px 8px; border-radius: 20px; margin: 2px; font-size: 11px;
+  }
+  #weakBox .empty { color: var(--ink-soft); }
+  /* ── 메인 ── */
+  #main { flex: 1; display: flex; flex-direction: column; }
+  #chat { flex: 1; overflow-y: auto; padding: 28px 8%; }
+  .msg { margin-bottom: 18px; display: flex; }
+  .msg.user { justify-content: flex-end; }
+  .bubble {
+    max-width: 78%; padding: 13px 16px; border-radius: var(--radius);
+    line-height: 1.6; white-space: pre-wrap; word-break: break-word; font-size: 15px;
+  }
+  .msg.user .bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+  .msg.bot .bubble { background: var(--card); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  /* ── 카드 ── */
+  .card {
+    max-width: 78%; background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 18px; margin-bottom: 18px;
+  }
+  .card .head { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .badge {
+    font-size: 12px; padding: 3px 10px; border-radius: 20px; font-weight: 600;
+    background: rgba(31,110,99,.12); color: var(--teal);
+  }
+  .badge.era { background: rgba(138,31,43,.1); color: var(--accent); }
+  .badge.ok { background: rgba(31,122,77,.14); color: var(--ok); }
+  .badge.no { background: rgba(181,51,63,.14); color: var(--no); }
+  .card .q { font-size: 15px; line-height: 1.6; margin-bottom: 14px; font-weight: 500; }
+  .choice {
+    display: block; width: 100%; text-align: left; padding: 11px 14px; margin-bottom: 8px;
+    background: #FBF9F3; border: 1px solid var(--line); border-radius: 10px;
+    cursor: pointer; font-family: inherit; font-size: 14px; color: var(--ink); transition: .15s;
+  }
+  .choice:hover:not(:disabled) { border-color: var(--accent-soft); background: #fff; }
+  .choice:disabled { cursor: default; opacity: .85; }
+  .choice.correct { border-color: var(--ok); background: rgba(31,122,77,.08); font-weight: 600; }
+  .choice.wrong { border-color: var(--no); background: rgba(181,51,63,.08); }
+  .card .expl { font-size: 14px; line-height: 1.65; color: var(--ink-soft); margin-top: 6px; padding-top: 12px; border-top: 1px dashed var(--line); }
+  .card .title { font-family: 'Gowun Batang', serif; font-size: 17px; margin-bottom: 8px; }
+  .chips { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-size: 12px; padding: 6px 12px; border-radius: 20px; cursor: pointer;
+    background: rgba(31,110,99,.08); color: var(--teal); border: 1px solid transparent;
+  }
+  .chip:hover { border-color: var(--teal); }
+  /* ── 입력 ── */
+  #inputBar { padding: 14px 8%; border-top: 1px solid var(--line); background: var(--paper); }
+  #inputForm { display: flex; gap: 10px; }
+  #input {
+    flex: 1; padding: 13px 16px; border: 1px solid var(--line); border-radius: 24px;
+    font-family: inherit; font-size: 15px; outline: none; background: #fff;
+  }
+  #input:focus { border-color: var(--accent-soft); }
+  #send {
+    padding: 0 24px; border: none; background: var(--accent); color: #fff;
+    border-radius: 24px; cursor: pointer; font-weight: 600; font-family: inherit; font-size: 15px;
+  }
+  #send:disabled { opacity: .5; cursor: default; }
+  .hint { text-align: center; font-size: 12px; color: var(--ink-soft); margin-top: 8px; }
+  .typing { color: var(--ink-soft); font-style: italic; }
+</style>
+</head>
+<body>
+  <aside id="sidebar">
+    <div class="brand">
+      <h1>사관 史官</h1>
+      <p>오답노트 기반 한국사 학습 Agent</p>
+    </div>
+    <button id="newChat">＋ 새 대화</button>
+    <div id="convList"></div>
+    <div id="weakBox">
+      <h3>📕 내 오답노트</h3>
+      <div id="weakTags" class="empty">아직 틀린 문제가 없어요.</div>
+    </div>
+  </aside>
+
+  <main id="main">
+    <div id="chat"></div>
+    <div id="inputBar">
+      <form id="inputForm">
+        <input id="input" placeholder="예) 문제 내줘  ·  광복은 몇 년도야?  ·  나 뭐가 약해?" autocomplete="off" />
+        <button id="send" type="submit">전송</button>
+      </form>
+      <div class="hint">문제 요청 → 답 제출 → 채점 → "나 뭐 약해?" → 약점 진단 → 취약 영역 재출제</div>
+    </div>
+  </main>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  대화 저장/관리 (localStorage · 서버 thread_id 동기화)
+// ══════════════════════════════════════════════════════════
+const LS_KEY = "sagwan.conversations";
+let conversations = JSON.parse(localStorage.getItem(LS_KEY) || "[]");
+let currentId = null;
+
+const $chat = document.getElementById("chat");
+const $input = document.getElementById("input");
+const $send = document.getElementById("send");
+
+function save() { localStorage.setItem(LS_KEY, JSON.stringify(conversations)); }
+function current() { return conversations.find(c => c.id === currentId); }
+
+function newConversation() {
+  const conv = { id: crypto.randomUUID(), thread_id: null, title: "새 대화", messages: [], wrong_tags: {} };
+  conversations.unshift(conv);
+  currentId = conv.id;
+  save(); renderConvList(); renderChat();
+}
+
+function deleteConversation(id, e) {
+  e.stopPropagation();
+  conversations = conversations.filter(c => c.id !== id);
+  if (currentId === id) currentId = conversations[0]?.id || null;
+  if (!currentId) newConversation(); else { save(); renderConvList(); renderChat(); }
+}
+
+function renderConvList() {
+  const $list = document.getElementById("convList");
+  $list.innerHTML = "";
+  conversations.forEach(c => {
+    const div = document.createElement("div");
+    div.className = "conv" + (c.id === currentId ? " active" : "");
+    div.innerHTML = `<span>${escapeHtml(c.title)}</span><span class="del">✕</span>`;
+    div.onclick = () => { currentId = c.id; save(); renderConvList(); renderChat(); };
+    div.querySelector(".del").onclick = (e) => deleteConversation(c.id, e);
+    $list.appendChild(div);
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+//  렌더링
+// ══════════════════════════════════════════════════════════
+function renderChat() {
+  $chat.innerHTML = "";
+  const conv = current();
+  if (!conv) return;
+  if (conv.messages.length === 0) renderWelcome();
+  conv.messages.forEach(m => {
+    if (m.role === "user") appendUser(m.text);
+    else if (m.card) appendCard(m);
+    else appendBot(m.text);
+  });
+  renderWeak(conv.wrong_tags);
+  $chat.scrollTop = $chat.scrollHeight;
+}
+
+function renderWelcome() {
+  const div = document.createElement("div");
+  div.className = "card";
+  div.innerHTML = `<div class="title">사관에 오신 걸 환영합니다 🏛️</div>
+    <div class="expl" style="border:none;padding-top:0">틀린 문제를 기억해 약점을 짚어드리고, 모든 답에 기출·사료 근거를 붙이는 한국사 학습 에이전트예요.<br><br>
+    아래처럼 물어보세요:</div>
+    <div class="chips">
+      <span class="chip" onclick="quickSend('한국사 문제 하나 내줘')">한국사 문제 하나 내줘</span>
+      <span class="chip" onclick="quickSend('광복은 몇 년도야?')">광복은 몇 년도야?</span>
+      <span class="chip" onclick="quickSend('임진왜란과 병자호란은 몇 년 차이야?')">두 사건 연도 차이</span>
+    </div>`;
+  $chat.appendChild(div);
+}
+
+function appendUser(text) {
+  const d = document.createElement("div");
+  d.className = "msg user";
+  d.innerHTML = `<div class="bubble">${escapeHtml(text)}</div>`;
+  $chat.appendChild(d); $chat.scrollTop = $chat.scrollHeight;
+}
+function appendBot(text) {
+  const d = document.createElement("div");
+  d.className = "msg bot";
+  d.innerHTML = `<div class="bubble">${escapeHtml(text)}</div>`;
+  $chat.appendChild(d); $chat.scrollTop = $chat.scrollHeight;
+}
+
+// 근거 출처 → 배지
+function sourceBadge(source) {
+  const map = {
+    past_exams: ["📜 기출", "badge"],
+    history_notes: ["📖 개념·사료", "badge"],
+    wikipedia: ["📗 위키백과", "badge"],
+    calculation: ["🧮 연도 계산", "badge"],
+    unknown: ["❓ 확인된 자료 없음", "badge no"],
+  };
+  const [label, cls] = map[source] || [null, null];
+  return label ? `<span class="${cls}">${label}</span>` : "";
+}
+
+function appendCard(msg) {
+  let el;
+  if (msg.card_type === "quiz") {
+    el = buildQuizCardEl(msg);                 // 문제 카드는 채점 상태를 품는 별도 빌더로
+  } else if (msg.card_type === "weakness") {
+    el = document.createElement("div"); el.className = "card"; el.appendChild(weaknessCard(msg.card));
+  } else if (msg.card_type === "answer") {
+    el = document.createElement("div"); el.className = "card"; el.appendChild(answerCard(msg.card));
+  } else {
+    return appendBot(msg.card.explanation || "");
+  }
+  $chat.appendChild(el); $chat.scrollTop = $chat.scrollHeight;
+  return el;
+}
+
+// ── 문제 카드: 선택지 클릭 → 같은 카드 안에서 채점·해설을 이어붙인다 ──
+function buildQuizCardEl(msg) {
+  const div = document.createElement("div");
+  div.className = "card";
+  renderQuizInto(div, msg);
+  msg._el = div;   // 나중에 제자리 갱신(채점 결과 반영)을 위해 DOM 참조 보관
+  return div;
+}
+
+function renderQuizInto(div, msg) {
+  const card = msg.card, graded = msg.graded;   // graded: null(미채점) | {정보}
+  div.innerHTML = "";
+
+  const head = document.createElement("div"); head.className = "head";
+  head.innerHTML = `<span class="badge era">${card.era} · ${card.topic}</span><span class="badge">📜 ${escapeHtml(card.source)}</span>`;
+  div.appendChild(head);
+
+  const q = document.createElement("div"); q.className = "q"; q.textContent = card.question;
+  div.appendChild(q);
+
+  card.choices.forEach((c, i) => {
+    const btn = document.createElement("button");
+    btn.className = "choice"; btn.textContent = c;
+    if (graded) {
+      btn.disabled = true;
+      if (i + 1 === graded.correct_index) btn.classList.add("correct");       // 정답 강조(초록)
+      else if (i + 1 === graded.submitted_index) btn.classList.add("wrong");  // 내가 고른 오답(빨강)
+    } else {
+      btn.onclick = () => submitChoice(msg, div, i + 1);
+    }
+    div.appendChild(btn);
+  });
+
+  // 채점됐으면 문제 박스 하단에 결과 배지 + 해설을 이어붙임
+  if (graded) {
+    const result = document.createElement("div"); result.className = "head"; result.style.marginTop = "12px";
+    result.innerHTML = graded.is_correct
+      ? `<span class="badge ok">✅ 정답</span>`
+      : `<span class="badge no">❌ 오답</span><span class="badge era">취약: ${escapeHtml(graded.weak_tag)}</span>`;
+    div.appendChild(result);
+    const expl = document.createElement("div"); expl.className = "expl";
+    expl.textContent = graded.explanation;
+    div.appendChild(expl);
+  }
+}
+
+async function submitChoice(msg, cardEl, choiceNum) {
+  if (msg.graded) return;                    // 이미 채점된 문제는 무시
+  const conv = current();
+  cardEl.querySelectorAll(".choice").forEach(b => (b.disabled = true));  // 중복 클릭 방지
+  try {
+    const data = await postChat(`${choiceNum}번`, conv.thread_id, msg.card);  // 문제를 함께 전송
+    conv.thread_id = data.thread_id;
+    conv.wrong_tags = data.wrong_tags || conv.wrong_tags;
+    applyGrade(msg, cardEl, data.card);
+    renderWeak(conv.wrong_tags);
+    save();
+  } catch (err) {
+    cardEl.querySelectorAll(".choice").forEach(b => (b.disabled = false));   // 실패 시 되돌림
+    alert("채점 중 오류가 발생했어요. 다시 시도해 주세요.");
+  }
+}
+
+// 채점 결과를 해당 문제 카드에 제자리 반영
+function applyGrade(msg, cardEl, gradeCard) {
+  if (!gradeCard) return;
+  msg.graded = {
+    is_correct: gradeCard.is_correct,
+    submitted_index: gradeCard.submitted_index,
+    correct_index: gradeCard.correct_index,
+    explanation: gradeCard.explanation,
+    weak_tag: gradeCard.weak_tag,
+  };
+  renderQuizInto(cardEl, msg);
+  $chat.scrollTop = $chat.scrollHeight;
+}
+
+function weaknessCard(card) {
+  const frag = document.createDocumentFragment();
+  const head = document.createElement("div"); head.className = "head";
+  head.innerHTML = `<span class="badge">📊 약점 진단</span><span class="badge era">누적 오답 ${card.total_wrong}</span>`;
+  frag.appendChild(head);
+  if (card.weak_areas.length) {
+    const areas = document.createElement("div"); areas.className = "q";
+    areas.innerHTML = card.weak_areas.map(a => `<span class="badge no" style="margin:2px">${escapeHtml(a)}</span>`).join(" ");
+    frag.appendChild(areas);
+  }
+  const s = document.createElement("div"); s.className = "expl"; s.textContent = card.suggestion;
+  frag.appendChild(s);
+  return frag;
+}
+
+function answerCard(card) {
+  const frag = document.createDocumentFragment();
+  const head = document.createElement("div"); head.className = "head";
+  head.innerHTML = sourceBadge(card.source) + (card.is_verified ? `<span class="badge ok">✔ 근거 검증</span>` : "");
+  frag.appendChild(head);
+  const t = document.createElement("div"); t.className = "title"; t.textContent = card.title;
+  frag.appendChild(t);
+  const e = document.createElement("div"); e.className = "expl"; e.style.borderTop = "none"; e.style.paddingTop = "0";
+  e.textContent = card.explanation;
+  frag.appendChild(e);
+  if (card.related_topics?.length) {
+    const chips = document.createElement("div"); chips.className = "chips";
+    card.related_topics.forEach(t => {
+      const c = document.createElement("span"); c.className = "chip"; c.textContent = t;
+      c.onclick = () => quickSend(t);
+      chips.appendChild(c);
+    });
+    frag.appendChild(chips);
+  }
+  return frag;
+}
+
+function renderWeak(tags) {
+  const $w = document.getElementById("weakTags");
+  const entries = Object.entries(tags || {}).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) { $w.className = "empty"; $w.textContent = "아직 틀린 문제가 없어요."; return; }
+  $w.className = "";
+  $w.innerHTML = entries.map(([t, n]) => `<span class="tag">${escapeHtml(t)} · ${n}회</span>`).join("");
+}
+
+// ══════════════════════════════════════════════════════════
+//  전송
+// ══════════════════════════════════════════════════════════
+function quickSend(text) { $input.value = text; sendMessage(); }
+
+// 서버 호출 공통 헬퍼 (quiz: 답안 제출 시 '풀고 있는 문제'를 함께 보내 채점 안정성 확보)
+async function postChat(message, threadId, quiz) {
+  const res = await fetch("/api/chat", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, thread_id: threadId, quiz: quiz || null }),
+  });
+  return res.json();
+}
+
+// 아직 채점되지 않은 가장 최근 문제 메시지(있으면)
+function pendingQuiz(conv) {
+  for (let i = conv.messages.length - 1; i >= 0; i--) {
+    const m = conv.messages[i];
+    if (m.card_type === "quiz" && !m.graded) return m;
+  }
+  return null;
+}
+
+async function sendMessage() {
+  const text = $input.value.trim();
+  if (!text) return;
+  const conv = current();
+  $input.value = "";
+  $send.disabled = true;
+
+  if (conv.messages.length === 0) { conv.title = text.slice(0, 20); renderConvList(); }
+  conv.messages.push({ role: "user", text });
+  appendUser(text);
+
+  const typing = document.createElement("div");
+  typing.className = "msg bot"; typing.innerHTML = `<div class="bubble typing">사관이 자료를 찾는 중…</div>`;
+  $chat.appendChild(typing); $chat.scrollTop = $chat.scrollHeight;
+
+  const pq = pendingQuiz(conv);   // 답안일 수 있으므로 풀고 있는 문제를 동봉
+  try {
+    const data = await postChat(text, conv.thread_id, pq?.card);
+    typing.remove();
+    conv.thread_id = data.thread_id;
+    conv.wrong_tags = data.wrong_tags || conv.wrong_tags;
+
+    if (data.card_type === "grade" && pq && pq._el) {
+      // 타이핑으로 답을 낸 경우에도 해당 문제 카드에 채점 결과를 이어붙임
+      applyGrade(pq, pq._el, data.card);
+    } else if (data.card) {
+      const msg = { role: "bot", card_type: data.card_type, card: data.card, graded: null };
+      conv.messages.push(msg);
+      appendCard(msg);
+    } else {
+      conv.messages.push({ role: "bot", text: data.reply });
+      appendBot(data.reply);
+    }
+    renderWeak(conv.wrong_tags);
+    save();
+  } catch (err) {
+    typing.remove();
+    appendBot("서버와 통신 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.");
+  } finally {
+    $send.disabled = false; $input.focus();
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+}
+
+document.getElementById("inputForm").addEventListener("submit", e => { e.preventDefault(); sendMessage(); });
+document.getElementById("newChat").addEventListener("click", newConversation);
+
+// 초기화 — 서버 접속 시 항상 새 대화로 시작(기존 대화는 사이드바에 유지).
+// 단, 최상단이 이미 빈 '새 대화'면 재사용해 새로고침 시 빈 대화가 쌓이지 않게 한다.
+if (conversations.length && conversations[0].messages.length === 0) {
+  currentId = conversations[0].id;
+  renderConvList(); renderChat();
+} else {
+  newConversation();
+}
+$input.focus();
+</script>
+</body>
+</html>
