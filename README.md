@@ -59,7 +59,7 @@ graph TD;
     guard["guard<br/>(Middleware: 입력검증)"]
     blocked_reply["blocked_reply<br/>(부적절 입력 안내)"]
     router["router<br/>(의도 4-way 분류)"]
-    quiz["quiz<br/>(약점 반영 출제)"]
+    quiz["quiz<br/>(출제: 랜덤/요청/약점)"]
     grade["grade<br/>(채점 + 오답노트 기록)"]
     weakness["weakness<br/>(약점 진단)"]
     agent["agent<br/>(개념질문: Tool 자율 판단)"]

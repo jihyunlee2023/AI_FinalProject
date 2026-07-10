@@ -67,6 +67,15 @@ def _detect_requested_tag(question: str) -> tuple[str | None, str | None]:
     return era, topic
 
 
+# '취약 영역/약점 위주로 내달라'는 의도를 나타내는 표현
+_WEAK_FOCUS_KEYWORDS = ("취약", "약점", "약한", "틀린", "오답", "복습")
+
+
+def _wants_weak_focus(question: str) -> bool:
+    """사용자가 취약 영역 집중 출제를 요청했는지 판별."""
+    return any(kw in question for kw in _WEAK_FOCUS_KEYWORDS)
+
+
 def _weakest_tag(wrong_tags: dict) -> tuple[str, str] | None:
     """오답노트에서 가장 많이 틀린 '시대·주제'를 (era, topic)으로 반환."""
     if not wrong_tags:
@@ -83,7 +92,10 @@ def select_quiz(
 ) -> QuizCard:
     """기출 벡터DB에서 문항 1개를 선택해 출제.
 
-    우선순위: ① 명시적으로 요청한 시대·주제 → ② 오답노트 취약 영역 → ③ 랜덤.
+    우선순위:
+      ① 명시적으로 요청한 시대·주제 ("조선 후기 경제 문제 줘")
+      ② 취약 영역 집중 요청 + 오답노트 존재 ("취약 영역 문제 줘", "약점 부분 내줘")
+      ③ 그 외 일반 요청 ("문제 내줘") → 랜덤
     실제 기출 DB에서 '검색해 선택'하므로 환각이 없다. 직전 문항은 제외.
     """
     last_q = (last_quiz or {}).get("question")
@@ -91,7 +103,7 @@ def select_quiz(
     req_era, req_topic = _detect_requested_tag(question)
     if req_era or req_topic:
         target, reason = (req_era, req_topic), "요청"
-    elif (weak := _weakest_tag(wrong_tags)) is not None:
+    elif _wants_weak_focus(question) and (weak := _weakest_tag(wrong_tags)) is not None:
         target, reason = weak, "약점"
     else:
         target, reason = None, "랜덤"
@@ -197,5 +209,5 @@ def build_weakness_report(wrong_tags: dict) -> WeaknessReport:
     return WeaknessReport(
         weak_areas=weak_areas,
         total_wrong=total,
-        suggestion=f"지금까지 {total}문제를 틀렸어요.{freq_hint} '{top_tag} 문제 줘'라고 하시면 그 영역을 집중 출제해 드릴게요.",
+        suggestion=f"지금까지 {total}문제를 틀렸어요.{freq_hint} '취약 영역 문제 줘'(또는 '{top_tag} 문제 줘')라고 하시면 그 영역을 집중 출제해 드릴게요.",
     )
