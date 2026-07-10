@@ -151,7 +151,7 @@ uvicorn app.server:app --reload
 | Middleware | 입력 가드레일 + Tool 로깅/재시도 데코레이터 |
 | OutputParser(구조화) | `QuizCard`/`GradeCard`/`WeaknessReport`/`AnswerCard` (Pydantic) |
 
-### Tool (4개)
+### Tool
 | Tool | 유형 | 역할 |
 |---|---|---|
 | `search_past_exams` | 벡터DB 검색(RAG) | 기출 문제 유사도 검색 |
@@ -166,7 +166,7 @@ uvicorn app.server:app --reload
 ### RAG 파이프라인
 `data/*` → **전처리**(JSON/텍스트 파싱, 제목·메타데이터 분리) → `text-embedding-3-small` 임베딩
 → FAISS 인덱싱(로컬 캐시) → 유사도 검색(k=3) + 거리 임계값 필터 → 근거로 주입
-출제·채점은 실제 기출 DB에서만 근거를 가져와 오해를 차단
+출제·채점은 실제 기출 DB에서만 근거를 가져옴
 
 ### Memory
 - **서버**: `SqliteSaver` 체크포인터 + `thread_id`(대화·오답노트를 `data/checkpoints.sqlite`에 영속화). `add_messages` 리듀서로 대화 이력이 누적되고,
