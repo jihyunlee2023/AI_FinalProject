@@ -79,8 +79,11 @@ async def index() -> FileResponse:
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest) -> ChatResponse:
     """질문을 Agent 그래프에 전달하고 구조화된 응답을 반환."""
-    thread_id = req.thread_id or str(uuid.uuid4())
-    config = {"configurable": {"thread_id": thread_id}}  # thread별 메모리
+    # 모든 사용자가 같은 스레드를 사용하여 오답노트 누적 저장
+    # (회차 진행 중인 채팅만 session_id로 분리)
+    session_id = req.thread_id or str(uuid.uuid4())
+    memory_thread_id = "default_user"  # 오답노트 누적 저장용 고정 스레드
+    config = {"configurable": {"thread_id": memory_thread_id}}
 
     input_state = _new_turn_state(req.message)
     if req.quiz:  # 클라이언트가 보낸 '풀고 있는 문제'를 채점 대상으로 주입
@@ -91,7 +94,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
     except Exception as exc:  # noqa: BLE001 — API 키/네트워크 장애를 친화적으로 처리
         logger.exception("그래프 실행 실패: %s", exc)
         return ChatResponse(
-            thread_id=thread_id,
+            thread_id=session_id,
             reply="답변을 만드는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요. (API 키·네트워크 확인)",
             card_type="error",
         )
@@ -106,7 +109,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
             break
 
     return ChatResponse(
-        thread_id=thread_id,
+        thread_id=session_id,  # 클라이언트에 현재 세션 ID 반환
         reply=reply,
         card_type=result.get("card_type", ""),
         card=result.get("card"),
